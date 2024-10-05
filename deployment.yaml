@@ -1,4 +1,3 @@
----
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -9,33 +8,33 @@ spec:
   strategy:
     canary:
       steps:
-      - setWeight: 40
-      - pause: {}
-      - setWeight: 40
-      - pause: {}
-      canaryService: demo-canary
-      stableService: demo
+      - setWeight: 40   # 40% of traffic to canary (new version)
+      - pause: {}       # Pause to monitor
+      - setWeight: 40   # Keep traffic at 40% (or adjust as needed)
+      - pause: {}       # Pause again for monitoring
+      canaryService: demo-canary  # Canary service for the new version (green)
+      stableService: demo         # Stable service for the old version (blue)
       trafficRouting:
         istio:
            virtualService: 
             name: istio-vs
             routes:
-            - primary # At least one route is required
+            - primary  # Using Istio's virtual service for traffic management
   replicas: 5
   revisionHistoryLimit: 4
   selector:
     matchLabels:
       app: demo
-      version: blue
+      version: green     # Update this to match the new version "green"
   template:
     metadata:
       labels:
         app: demo
-        version: blue
+        version: green    # Label the new version as "green"
     spec:
       containers:
       - name: demo
-        image: argoproj/rollouts-demo:blue
+        image: argoproj/rollouts-demo:green   # Use the new image (green version)
         imagePullPolicy: Always
         ports:
         - name: web
@@ -47,50 +46,3 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "140m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: demo
-spec:
-  ports:
-  - port: 80
-    targetPort: 8080
-  selector:
-    app: demo
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: demo-canary
-spec:
-  ports:
-  - port: 80
-    targetPort: 8080
-  selector:
-    app: demo
-  type: ClusterIP
----
-# apiVersion: argoproj.io/v1alpha1
-# kind: AnalysisTemplate
-# metadata:
-#   name: success-rate
-# spec:
-#   args:
-#   - name: service-name
-#   metrics:
-#   - name: success-rate
-#     successCondition: result[0] >= 0.95
-#     interval: 30s
-#     failureLimit: 1
-#     provider:
-#       prometheus:
-#         address: http://prometheus.istio-system.svc.cluster.local:9090
-#         query: |
-#           sum(irate(
-#             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[1m]
-#           )) / 
-#           sum(irate(
-#             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[1m]
-#           ))

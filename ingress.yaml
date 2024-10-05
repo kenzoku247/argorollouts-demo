@@ -31,7 +31,7 @@ spec:
       route:
         - destination:
             host: demo
-          weight: 90
+          weight: 100
         - destination:
             host: demo-canary
-          weight: 10
+          weight: 0
